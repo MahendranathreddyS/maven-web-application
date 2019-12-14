@@ -1,61 +1,42 @@
 node
 {
-     echo "GitHub BranhName ${env.BRANCH_NAME}"
-  echo "Jenkins Job Number ${env.BUILD_NUMBER}"
-  echo "Jenkins Node Name ${env.NODE_NAME}"
-  
-  echo "Jenkins Home ${env.JENKINS_HOME}"
-  echo "Jenkins URL ${env.JENKINS_URL}"
-  echo "JOB Name ${env.JOB_NAME}"
-  
-   properties([
-    buildDiscarder(logRotator(numToKeepStr: '5')),
-    pipelineTriggers([
-        pollSCM('* * * * *')
-    ])
-  ])
-  
-    def mavenHome=tool name: "maven3.6.2", type: "maven"
-
- stage ('checkout')
- {
-    git credentialsId: 'e0ca82e1-577b-41e6-962a-0dc44b0e3d34', url: 'https://github.com/MahendranathreddyS/maven-web-application.git' 
-     
- }
- 
- stage('Build')
- {
- sh "${mavenHome}/bin/mvn clean package"
-     
- } 
- 
-  stage('SonarQube Report')
- {
- sh "${mavenHome}/bin/mvn sonar:sonar"
-     
- }
- 
- stage('Nexus Artifactory')
- {
- sh "${mavenHome}/bin/mvn deploy"
-     
- }
- 
- stage('Deploy into Tomcat')
- {
- sshagent(['cf10e790-f261-4db2-816f-b7900ab4c984'])
- {
- sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@52.66.243.176:/opt/apache-tomcat-9.0.26/webapps/maven-web-apllication.war"
-}
-}
+    def mavenHome=tool name: "maven-3.6.3", type: "maven"
+    stage('GitCheckout')
+    {
+     git branch: 'development', credentialsId: '2e9618b5-a4c4-4e5b-befd-1ce02a828c40', url: 'https://github.com/MahendranathreddyS/maven-web-application.git'
+    }
     
-  stage('Email-notification')
-  {
-      emailext body: '''Build is over
+    stage('Build Using maven')
+    {
+       sh "${mavenHome}/bin/mvn clean package" 
+    }
+    
+    stage('SonarQube report')
+    {
+    sh "${mavenHome}/bin/mvn sonar:sonar"
+    }
+    
+    stage('Upload Artifacts Into Nexus')
+    {
+        sh "${mavenHome}/bin/mvn deploy"
+    }
+    
+    stage('Deploy Into Tomcat')
+    {
+        sshagent(['Tomcatserver']) {
+            
+     sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@13.232.227.82:/opt/apache-tomcat-8.5.50/webapps/maven-web-application.war"
+   }
+
+    }
+    
+    stage('Email Notification')
+    {
+emailext body: '''Git Checkout,Build,SonarQube Report,Upload artifacts into Nexus,Deploy into Tomcat
 
 Regards,
-S.Mahendranath Reddy''', subject: 'Build over of Maven web application', to: 'mahendra.singasani@gmail.com'
+S.Mahendranath Reddy''', subject: 'Pipeline Script is done', to: 'smnr.singasani@gmail.com'
 
-  }
-    
+}
+
 }
